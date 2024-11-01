@@ -9,6 +9,7 @@ from django.contrib.sites.models import Site
 from django.core import checks
 from django.core.cache import cache
 from django.core.checks.urls import check_url_config
+from django.core.exceptions import ImproperlyConfigured
 from django.test.utils import override_settings
 from django.urls import NoReverseMatch, clear_url_caches, resolve, reverse
 from django.utils.timezone import now
@@ -31,7 +32,6 @@ from cms.utils.conf import get_cms_setting
 from cms.utils.urlutils import admin_reverse
 from menus.menu_pool import menu_pool
 from menus.utils import DefaultLanguageChanger
-
 APP_NAME = 'SampleApp'
 NS_APP_NAME = 'NamespacedApp'
 APP_MODULE = "cms.test_utils.project.sampleapp.cms_apps"
@@ -149,7 +149,25 @@ class ApphooksTestCase(CMSTestCase):
         self.assertEqual(len(hooks), 1)
         self.assertEqual(app_names, [APP_NAME])
         self.apphook_clear()
+    
+    @override_settings(CMS_APPHOOKS=[f'{APP_MODULE}.{APP_NAME}'])
+    def test_apphook_without_name_raises_improperly_configured(self):
+        """
+        Test that an apphook without a name raises an ImproperlyConfigured exception.
+        """
+        class AppWithoutName(CMSApp):
+            def get_urls(self, page=None, language=None, **kwargs):
+                return ["sampleapp.urls"]
 
+        apphook_pool.register(AppWithoutName)
+        
+        with self.assertRaises(ImproperlyConfigured) as cm:
+            apphook_pool.get_apphooks()
+
+        self.assertIn(
+            'CMS application must define name but AppWithoutName does not have one',
+            str(cm.exception)
+        )
     @override_settings(
         INSTALLED_APPS=['cms.test_utils.project.sampleapp'],
         ROOT_URLCONF='cms.test_utils.project.urls_for_apphook_tests',

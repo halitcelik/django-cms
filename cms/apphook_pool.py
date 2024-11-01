@@ -43,7 +43,7 @@ class ApphookPool:
             warnings.warn("You define a 'menu' attribute on CMS application "
                 "%r, but the 'menus' attribute is empty, "
                 "did you make a typo?" % app.__name__)
-
+        
         self.apps[app.__name__] = app()
         return app
 
@@ -73,6 +73,11 @@ class ApphookPool:
             app = self.apps[app_name]
 
             if app.get_urls():
+                if app.name is None:
+                    raise ImproperlyConfigured(
+                        'CMS application must define name '
+                        'but %r does not have one' % app_name
+                    )
                 hooks.append((app_name, app.name))
 
         # Unfortunately, we lose the ordering since we now have a list of
